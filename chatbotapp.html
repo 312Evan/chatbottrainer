@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FlipSky Chatbot Maker</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: space-between;
+      height: 100vh;
+      margin: 0;
+      font-family: sans-serif;
+    }
+
+    .chatbot,
+    .trainer {
+      width: 48%;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .chatbot textarea,
+    .trainer textarea,
+    input {
+      width: 96%;
+      padding: 10px;
+      margin: 10px 0;
+      resize: none;
+      border: 1px solid #ccc;
+      background-color: #d7d7d7;
+      color: black;
+      border-radius: 10px;
+      -webkit-box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
+      -moz-box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
+      box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
+    }
+
+    .output {
+      height: 200px;
+      border: 1px solid #ccc;
+      overflow-y: auto;
+      padding: 10px;
+      border-radius: 10px;
+      -webkit-box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
+      -moz-box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
+      box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
+    }
+
+    button {
+      padding: 10px 20px;
+      cursor: pointer;
+      border: none;
+      border-radius: 25px;
+      background-color: rgb(49, 100, 255);
+      -webkit-box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
+      -moz-box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
+      box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
+      color: white;
+    }
+
+    .sendButton {
+      width: 100%;
+    }
+
+    .opentrainer {
+      position: absolute;
+      top: 90%;
+      background-color: #9a9a9a;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    .database {
+      height: 150px;
+    }
+
+    .trainer {
+      display: none;
+    }
+
+    .deleteButton {
+      background: #ec0000;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="chatbot">
+    <h2>Chatbot Maker</h2>
+    <div class="output" id="chatOutput"></div>
+    <textarea id="chatInput" placeholder="Ask me a question"></textarea>
+    <button class="sendButton" onclick="askQuestion()">Send</button>
+    <br><br>
+    <button class="opentrainer" onclick="toggleTrainer()">Open Trainer</button>
+  </div>
+
+  <div class="trainer" id="trainer">
+    <h2>Trainer</h2>
+    <textarea id="trainQuestion" placeholder="Enter a new question"></textarea>
+    <textarea id="trainAnswer" placeholder="Enter the answer to the question"></textarea>
+    <button onclick="trainBot()">Train</button>
+    <br>
+    <h2>Your Database</h2>
+    <textarea class="database" id="database"></textarea>
+    <button onclick="downloadData()">Download Training Data</button>
+    <button onclick="uploadDatabase()">Upload Database</button>
+    <button class="deleteButton" onclick="deleteDatabase()">Delete Database</button>
+    <input type="file" id="uploadFileInput" style="display:none" accept="application/json" />
+  </div>
+
+  <script>
+    let knowledgeBase = JSON.parse(localStorage.getItem('knowledgeBase')) || { questions: [] };
+
+    let databaseText = document.getElementById('database');
+    databaseText.value = JSON.stringify(knowledgeBase, null, 2);
+
+    databaseText.addEventListener('input', function () {
+      try {
+        knowledgeBase = JSON.parse(databaseText.value);
+        saveKnowledgeBase();
+        console.log("Database updated successfully!");
+      } catch (e) {
+        console.error('Invalid JSON format:', e);
+      }
+    });
+
+    // Dictionary for interchangeable words
+    const interchangeableWords = {
+      "who": "what",
+      "there": "their",
+      "there": "they're",
+      "their": "they're",
+      "there": "they are",
+      "they're": "they are",
+      "their": "they are",
+      "whats": "what is",
+      "what's": "what is",
+      "what": "what is",
+      "a": "",
+      "an": "",
+      "youre": "you are",
+      "you're": "you are",
+      "isnt": "is not",
+      "isn't": "is not",
+      "dont": "do not",
+      "don't": "do not",
+      "cant": "cannot",
+      "can't": "cannot",
+      "whos": "who is",
+      "who's": "who is",
+      "wheres": "where is",
+      "where's": "where is",
+      "it's": "it is",
+      "that's": "that is",
+      "there's": "there is",
+      "we're": "we are",
+      "they're": "they are",
+      "shouldn't": "should not",
+      "won't": "will not",
+      "couldn't": "could not",
+      "i'm": "i am",
+      "how're": "how are",
+      "what're": "what are",
+      "how's": "how is",
+      "who's": "who is",
+      "what'd": "what did",
+      "gonna": "going to",
+      "wanna": "want to",
+      "gotta": "got to",
+      "u": "you",
+      "ur": "your",
+      "ur": "you're",
+      "r": "are",
+      "pls": "please",
+      "thx": "thanks",
+      "lol": "laughing out loud",
+      "brb": "be right back",
+      "idk": "i don't know",
+      "omg": "oh my god",
+      "hi": "hello",
+      "bye": "goodbye",
+      "thanks": "thank you",
+      "yeah": "yes",
+      "nah": "no",
+      "okay": "ok",
+      "good": "well",
+      "what is": "what's",
+      "do not": "don't",
+      "cannot": "can't",
+      "will not": "won't",
+      "how are you": "how're you",
+      "a": "",
+      "the": "",
+      "didn't": "did not",
+      "doesn't": "does not",
+      "isn't": "is not",
+      "aren't": "are not",
+      "wasn't": "was not",
+      "weren't": "were not",
+      "haven't": "have not",
+      "hasn't": "has not",
+      "wouldn't": "would not",
+      "can't": "cannot",
+      "could've": "could have",
+      "should've": "should have",
+      "would've": "would have",
+      "i'd": "i would",
+      "i've": "i have",
+      "i'll": "i will",
+      "you'd": "you would",
+      "you've": "you have",
+      "you'll": "you will",
+      "he'd": "he would",
+      "he's": "he is",
+      "he'll": "he will",
+      "she'd": "she would",
+      "she's": "she is",
+      "she'll": "she will",
+      "we'd": "we would",
+      "we've": "we have",
+      "we'll": "we will",
+      "they'd": "they would",
+      "they've": "they have",
+      "they'll": "they will",
+      "cuz": "because",
+      "wanna": "want to",
+      "kinda": "kind of",
+      "sorta": "sort of",
+      "lemme": "let me",
+      "gimme": "give me",
+      "outta": "out of",
+      "dunno": "do not know",
+      "gotta": "got to",
+      "ya": "you",
+      "yep": "yes",
+      "nope": "no",
+      "on the": "",
+      "in the": "",
+      "at the": "",
+      "to the": "",
+      "what is": "what's",
+      "where is": "where's",
+      "how is": "how's",
+      "who is": "who's",
+      "why is": "why's",
+      "howdy": "hello",
+      "greetings": "hello",
+      "farewell": "goodbye",
+      "later": "goodbye",
+      "see ya": "goodbye",
+      "hiya": "hello",
+      "sup": "what's up",
+      "what's up": "how are you",
+      "how are you doing": "how's it going",
+      "nice to meet you": "pleased to meet you",
+      "good day": "hello",
+      "how are you": "how're you",
+      "what are you doing": "what're you doing",
+      "what's going on": "what is happening",
+      "what's the matter": "what is wrong",
+      "let's": "let us",
+      "do you wanna": "do you want to",
+      "could you": "can you",
+      "would you mind": "could you",
+      "please help": "can you help",
+      "um": "",
+      "uh": "",
+      "like": "",
+      "so": "",
+      "well": "",
+      "is": "are",
+      "is": "was",
+      "app": "application",
+      "to": "for",
+      "to": "too"
+    };
+
+    function normalizeSentence(sentence) {
+      sentence = sentence.toLowerCase();
+      for (const [key, value] of Object.entries(interchangeableWords)) {
+        const regex = new RegExp(`\\b${key}\\b`, 'gi');
+        sentence = sentence.replace(regex, value);
+      }
+      return sentence;
+    }
+
+    function askQuestion() {
+      const userQuestion = normalizeSentence(document.getElementById('chatInput').value.trim());
+      const chatOutput = document.getElementById('chatOutput');
+      let response = "Sorry, I don't have an answer for that question.";
+
+      const bestMatch = findBestMatch(userQuestion);
+
+      if (bestMatch) {
+        const matchingQuestions = knowledgeBase.questions.filter(q => normalizeSentence(q.question) === bestMatch);
+        const randomAnswer = matchingQuestions[Math.floor(Math.random() * matchingQuestions.length)].answer;
+        response = randomAnswer;
+      }
+
+      chatOutput.innerHTML += `<p>You: ${document.getElementById('chatInput').value}</p><p>Bot: ${response}</p>`;
+      document.getElementById('chatInput').value = '';
+    }
+
+    function findBestMatch(userQuestion) {
+      let bestMatch = null;
+      let highestSimilarity = 0.0;
+
+      for (const questionObj of knowledgeBase.questions) {
+        const question = normalizeSentence(questionObj.question);
+        const similarity = stringSimilarity(userQuestion, question);
+
+        if (similarity > 0.5 && similarity > highestSimilarity) {
+          highestSimilarity = similarity;
+          bestMatch = question;
+        }
+      }
+
+      return bestMatch;
+    }
+
+    function stringSimilarity(str1, str2) {
+      const len1 = str1.length;
+      const len2 = str2.length;
+      let matches = 0;
+
+      for (let i = 0; i < Math.min(len1, len2); i++) {
+        if (str1[i] === str2[i]) {
+          matches++;
+        }
+      }
+
+      return matches / Math.max(len1, len2);
+    }
+
+    function trainBot() {
+      const newQuestion = document.getElementById('trainQuestion').value;
+      const newAnswer = document.getElementById('trainAnswer').value;
+
+      if (newQuestion && newAnswer) {
+        knowledgeBase.questions.push({ question: newQuestion, answer: newAnswer });
+        saveKnowledgeBase();
+        alert('Training data saved!');
+        document.getElementById('trainQuestion').value = '';
+        document.getElementById('trainAnswer').value = '';
+        databaseText.value = JSON.stringify(knowledgeBase, null, 2);
+      } else {
+        alert('Please fill both fields!');
+      }
+    }
+
+    function toggleTrainer() {
+      const trainerDiv = document.getElementById('trainer');
+      if (trainerDiv.style.display === 'none') {
+        trainerDiv.style.display = 'block';
+        event.target.textContent = 'Close Trainer';
+      } else {
+        trainerDiv.style.display = 'none';
+        event.target.textContent = 'Open Trainer';
+      }
+    }
+
+    function downloadData() {
+      const dataStr = JSON.stringify(knowledgeBase, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'knowledge_base.json';
+      a.click();
+
+      URL.revokeObjectURL(url);
+    }
+
+    function uploadDatabase() {
+      const fileInput = document.getElementById('uploadFileInput');
+      fileInput.click();
+
+      fileInput.onchange = (e) => {
+        const file = e.target.files[0];
+        const reader = new FileReader();
+
+        reader.onload = (event) => {
+          try {
+            knowledgeBase = JSON.parse(event.target.result);
+            saveKnowledgeBase();
+            databaseText.value = JSON.stringify(knowledgeBase, null, 2);
+            alert('Database uploaded successfully!');
+          } catch (err) {
+            alert('Invalid JSON file');
+          }
+        };
+
+        reader.readAsText(file);
+      };
+    }
+
+    function deleteDatabase() {
+      if (confirm('Are you sure you want to delete the entire database?')) {
+        knowledgeBase = { questions: [] };
+        saveKnowledgeBase();
+        databaseText.value = '';
+      }
+    }
+
+    function saveKnowledgeBase() {
+      localStorage.setItem('knowledgeBase', JSON.stringify(knowledgeBase));
+    }
+  </script>
+
+</body>
+
+</html>
